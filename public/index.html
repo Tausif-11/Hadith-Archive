@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hadith Library</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Load Indo-Pak / Naskh Arabic Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-container">
+      <h1>Hadith Library</h1>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search by hadith number, narrator, or words..." />
+        <button onclick="handleSearch()">Search</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Sidebar for Collections -->
+    <aside class="sidebar">
+      <h2>Collections</h2>
+      <ul id="collectionList">
+        <li class="active" onclick="selectCollection('bukhari', this)">📚 Sahih al-Bukhari</li>
+        <li onclick="selectCollection('muslim', this)">📚 Sahih Muslim</li>
+        <li onclick="selectCollection('abudawud', this)">📚 Sunan Abi Dawud</li>
+        <li onclick="selectCollection('tirmidhi', this)">📚 Jamiʿ at-Tirmidhi</li>
+        <li onclick="selectCollection('nasai', this)">📚 Sunan an-Nasa'i</li>
+        <li onclick="selectCollection('ibnmajah', this)">📚 Sunan Ibn Majah</li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Stream -->
+    <section class="content-area">
+      <div class="top-bar">
+        <h2 id="currentTitle">Sahih al-Bukhari</h2>
+        <button class="bookmark-btn" onclick="showBookmarks()">⭐ Favorites</button>
+      </div>
+      
+      <div class="hadith-feed" id="hadithContainer">
+        <!-- Hadith Cards Loaded Dynamically -->
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
