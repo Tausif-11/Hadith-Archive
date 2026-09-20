@@ -1,6 +1,7 @@
 let currentCollection = '';
 let currentChapter = 1;
 let currentBookMeta = null;
+let allBooksData = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -57,55 +58,77 @@ function updateBreadcrumbs(crumbs) {
 function showSection(sectionId) {
   document.querySelectorAll(".view-section").forEach(sec => sec.classList.add("hidden"));
   document.getElementById(sectionId).classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Render Categorized Books View
+/* Render Dynamic Books Grid with Live Search Filter */
 async function navigateToBooks() {
   showSection("viewBooks");
   updateBreadcrumbs([{ label: "Collections", action: navigateToBooks }]);
 
   const grid = document.getElementById("booksGrid");
-  grid.innerHTML = "<p>Loading collections...</p>";
 
-  try {
-    const res = await fetch("/api/books");
-    const books = await res.json();
-    grid.innerHTML = "";
+  if (allBooksData.length === 0) {
+    grid.innerHTML = "<p>Loading collections...</p>";
+    try {
+      const res = await fetch("/api/books");
+      allBooksData = await res.json();
+    } catch (err) {
+      grid.innerHTML = `<p style="color:red">Failed to load collections: ${err.message}</p>`;
+      return;
+    }
+  }
 
-    // Group books by category
-    const categories = {};
-    books.forEach(b => {
-      if (!categories[b.category]) categories[b.category] = [];
-      categories[b.category].push(b);
+  renderBooksGrid(allBooksData);
+}
+
+function renderBooksGrid(books) {
+  const grid = document.getElementById("booksGrid");
+  grid.innerHTML = "";
+
+  if (books.length === 0) {
+    grid.innerHTML = "<p>No matching collections found.</p>";
+    return;
+  }
+
+  const categories = {};
+  books.forEach(b => {
+    if (!categories[b.category]) categories[b.category] = [];
+    categories[b.category].push(b);
+  });
+
+  for (const [catName, catBooks] of Object.entries(categories)) {
+    const catHeading = document.createElement("h3");
+    catHeading.className = "category-title";
+    catHeading.innerText = catName;
+    grid.appendChild(catHeading);
+
+    const catGrid = document.createElement("div");
+    catGrid.className = "books-grid-category";
+
+    catBooks.forEach(book => {
+      const card = document.createElement("div");
+      card.className = "book-card";
+      card.onclick = () => loadChapters(book.id);
+      card.innerHTML = `
+        <div>
+          <div class="book-title">${book.name}</div>
+          <div class="book-arabic">${book.arabic}</div>
+        </div>
+      `;
+      catGrid.appendChild(card);
     });
 
-    for (const [catName, catBooks] of Object.entries(categories)) {
-      const catHeading = document.createElement("h3");
-      catHeading.className = "category-title";
-      catHeading.innerText = catName;
-      grid.appendChild(catHeading);
-
-      const catGrid = document.createElement("div");
-      catGrid.className = "books-grid-category";
-
-      catBooks.forEach(book => {
-        const card = document.createElement("div");
-        card.className = "book-card";
-        card.onclick = () => loadChapters(book.id);
-        card.innerHTML = `
-          <div>
-            <div class="book-title">${book.name}</div>
-            <div class="book-arabic">${book.arabic}</div>
-          </div>
-        `;
-        catGrid.appendChild(card);
-      });
-
-      grid.appendChild(catGrid);
-    }
-  } catch (err) {
-    grid.innerHTML = `<p style="color:red">Failed to load collections: ${err.message}</p>`;
+    grid.appendChild(catGrid);
   }
+}
+
+function filterBooks() {
+  const query = document.getElementById("searchInput").value.toLowerCase();
+  const filtered = allBooksData.filter(b => 
+    b.name.toLowerCase().includes(query) || b.arabic.includes(query)
+  );
+  renderBooksGrid(filtered);
 }
 
 async function loadChapters(collectionId) {
@@ -209,7 +232,7 @@ function createHadithCard(hadith) {
     
     <div class="reference-box">
       <div><strong>In-book reference:</strong> ${hadith.reference.inBook}</div>
-      <div><strong>USC-MSA web (English) reference:</strong> ${hadith.reference.uscMsa}</div>
+      <div><strong>USC-MSA web reference:</strong> ${hadith.reference.uscMsa}</div>
     </div>
 
     <div class="card-actions">

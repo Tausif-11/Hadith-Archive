@@ -69,6 +69,17 @@
           <h2 id="chapterTitleEnglish">Chapter Name</h2>
           <h3 id="chapterTitleArabic" class="arabic-text-header"></h3>
         </div>
+
+        <div class="search-container">
+  <i data-lucide="search" class="search-icon"></i>
+  <input 
+    type="text" 
+    id="searchInput" 
+    class="search-input" 
+    placeholder="Search collection titles..." 
+    oninput="filterBooks()" 
+  />
+</div>
         <div class="chapter-pagination">
           <button class="btn" onclick="navigateChapter(-1)"><i data-lucide="chevron-left"></i> Previous</button>
           <button class="btn" onclick="navigateChapter(1)">Next <i data-lucide="chevron-right"></i></button>
