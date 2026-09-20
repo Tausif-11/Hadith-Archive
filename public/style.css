@@ -1,10 +1,23 @@
 :root {
-  --primary-color: #1b4332;
-  --accent-color: #2d6a4f;
-  --bg-color: #f8f9fa;
-  --card-bg: #ffffff;
-  --text-dark: #212529;
-  --border-color: #e9ecef;
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --brand-color: #065f46;
+  --brand-hover: #047857;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-surface: #1e293b;
+  --border-color: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --brand-color: #10b981;
+  --brand-hover: #34d399;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -15,19 +28,174 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-dark);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.app-header {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 1rem 2rem;
-}
-
-.header-container {
-  max-width: 1200px;
+.container {
+  max-width: 1100px;
   margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Navbar */
+.navbar {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--brand-color);
+  cursor: pointer;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background-color: var(--bg-primary);
+}
+
+/* Breadcrumbs */
+.breadcrumb-bar {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.crumb {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.crumb.active {
+  color: var(--brand-color);
+  font-weight: 600;
+}
+
+.crumb-separator {
+  margin: 0 0.5rem;
+  color: var(--text-secondary);
+}
+
+/* Views */
+.main-content {
+  margin-top: 2rem;
+  margin-bottom: 4rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.section-title {
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+/* Books Grid */
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.book-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--card-shadow);
+}
+
+.book-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-color);
+}
+
+.book-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.book-arabic {
+  font-family: 'Scheherazade New', 'Amiri', serif;
+  font-size: 1.4rem;
+  direction: rtl;
+  color: var(--text-secondary);
+}
+
+/* Chapters List */
+.chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.chapter-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+}
+
+.chapter-item:hover {
+  border-color: var(--brand-color);
+}
+
+/* Chapter Banner Header */
+.chapter-banner {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -35,121 +203,110 @@ body {
   gap: 1rem;
 }
 
-.search-box {
+.chapter-badge {
+  background: var(--bg-primary);
+  color: var(--brand-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.arabic-text-header {
+  font-family: 'Scheherazade New', 'Amiri', serif;
+  font-size: 1.5rem;
+  direction: rtl;
+  margin-top: 0.5rem;
+}
+
+.chapter-pagination {
   display: flex;
   gap: 0.5rem;
 }
 
-.search-box input {
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  border: none;
-  min-width: 280px;
-}
-
-.search-box button, .bookmark-btn {
-  padding: 0.6rem 1.2rem;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.main-layout {
-  max-width: 1200px;
-  margin: 2rem auto;
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 2rem;
-  padding: 0 1rem;
-}
-
-.sidebar {
-  background: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 8px;
+.btn {
+  background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
-  height: fit-content;
-}
-
-.sidebar h2 {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-}
-
-.sidebar ul {
-  list-style: none;
-}
-
-.sidebar li {
-  padding: 0.8rem;
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
-  margin-bottom: 0.3rem;
-  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
 }
 
-.sidebar li:hover, .sidebar li.active {
-  background-color: var(--border-color);
-  font-weight: bold;
+.btn:hover {
+  background-color: var(--bg-primary);
 }
 
-.top-bar {
+/* Hadith Cards & Reference Info */
+.hadith-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--card-shadow);
+}
+
+.card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 0.75rem;
 }
 
-.hadith-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+.hadith-tag {
+  font-weight: 600;
+  color: var(--brand-color);
+  font-size: 0.95rem;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #6c757d;
+.hadith-grade {
+  font-size: 0.85rem;
+  background-color: var(--bg-primary);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
 }
 
-/* Indo-Pak Naskh Arabic Typography */
+/* Indo-Pak Arabic Font Rendering */
 .arabic-text {
   font-family: 'Scheherazade New', 'Amiri', serif;
-  font-size: 1.7rem;
+  font-size: 1.9rem;
   line-height: 2.3;
   direction: rtl;
   text-align: right;
-  margin-bottom: 1.2rem;
-  color: #111;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
 }
 
 .english-text {
-  font-size: 1rem;
-  line-height: 1.6;
-  margin-bottom: 1.2rem;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+/* Sunnah.com Style Reference Box */
+.reference-box {
+  background-color: var(--bg-primary);
+  border-left: 3px solid var(--brand-color);
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .card-actions {
   display: flex;
-  gap: 1rem;
-}
-
-.card-actions button {
-  background: none;
-  border: 1px solid var(--border-color);
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  .main-layout {
-    grid-template-columns: 1fr;
-  }
+  gap: 0.75rem;
 }
