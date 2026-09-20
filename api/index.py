@@ -1,11 +1,9 @@
-import os
 import requests
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Enable CORS for local testing and Vercel execution
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,46 +12,86 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUNNAH_API_KEY = os.getenv("SUNNAH_API_KEY", "")
-BASE_URL = "https://api.sunnah.com/v1"
+RAW_CDN_BASE = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/v1.2.0/db/by_book/the_9_books"
 
-HEADERS = {
-    "x-api-key": SUNNAH_API_KEY
+COLLECTION_MAP = {
+    "bukhari": "bukhari.json",
+    "muslim": "muslim.json",
+    "abudawud": "abudawud.json",
+    "tirmidhi": "tirmidhi.json",
+    "nasai": "nasai.json",
+    "ibnmajah": "ibnmajah.json"
 }
 
-@app.get("/api/collections")
-def get_collections():
-    """Fetch list of available Hadith collections"""
-    if not SUNNAH_API_KEY:
-        # Fallback dummy data if API Key isn't configured yet
-        return [
-            {"name": "bukhari", "title": "Sahih al-Bukhari"},
-            {"name": "muslim", "title": "Sahih Muslim"},
-            {"name": "abudawud", "title": "Sunan Abi Dawud"},
-            {"name": "tirmidhi", "title": "Jami' at-Tirmidhi"},
-            {"name": "nasai", "title": "Sunan an-Nasa'i"},
-            {"name": "ibnmajah", "title": "Sunan Ibn Majah"}
-        ]
+# Simple memory cache to prevent fetching full JSON files repeatedly
+data_cache = {}
+
+def get_collection_data(collection: str):
+    if collection not in COLLECTION_MAP:
+        raise HTTPException(status_code=404, detail="Collection not found")
     
-    response = requests.get(f"{BASE_URL}/collections", headers=HEADERS)
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to fetch collections")
-    return response.json()
+    if collection in data_cache:
+        return data_cache[collection]
+    
+    url = f"{RAW_CDN_BASE}/{COLLECTION_MAP[collection]}"
+    res = requests.get(url)
+    if res.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to fetch dataset")
+    
+    data = res.json()
+    data_cache[collection] = data
+    return data
 
 @app.get("/api/hadiths")
 def get_hadiths(collection: str = "bukhari", page: int = 1, limit: int = 20):
-    """Fetch hadiths for a given collection"""
-    url = f"{BASE_URL}/collections/{collection}/hadiths?page={page}&limit={limit}"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code != 200:
-        raise HTTPException(status_code=404, detail="Hadiths not found")
-    return response.json()
+    raw_data = get_collection_data(collection)
+    
+    # Calculate pagination slice
+    start = (page - 1) * limit
+    end = start + limit
+    sliced = raw_data[start:end]
+    
+    formatted_hadiths = []
+    for item in sliced:
+        formatted_hadiths.append({
+            "id": item.get("id"),
+            "hadithNumber": item.get("id"),
+            "arabicText": item.get("arabic", ""),
+            "englishText": f"{item.get('english', {}).get('narrator', '')} {item.get('english', {}).get('text', '')}".strip(),
+            "grades": [{"grade": "Sahih" if collection in ["bukhari", "muslim"] else "Hasan/Sahih"}]
+        })
+        
+    return {
+        "page": page,
+        "limit": limit,
+        "total": len(raw_data),
+        "hadiths": formatted_hadiths
+    }
 
 @app.get("/api/search")
 def search_hadith(q: str = Query(...)):
-    """Search hadiths across collections"""
-    url = f"{BASE_URL}/search?q={q}"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Search failed")
-    return response.json()
+    query = q.lower()
+    results = []
+    
+    # Search across Sahih Bukhari and Sahih Muslim by default
+    for col in ["bukhari", "muslim"]:
+        dataset = get_collection_data(col)
+        for item in dataset:
+            eng_text = f"{item.get('english', {}).get('narrator', '')} {item.get('english', {}).get('text', '')}".lower()
+            arabic_text = item.get("arabic", "")
+            hadith_id = str(item.get("id"))
+            
+            if query in eng_text or query in arabic_text or query == hadith_id:
+                results.append({
+                    "id": f"{col}_{item.get('id')}",
+                    "hadithNumber": item.get("id"),
+                    "arabicText": item.get("arabic", ""),
+                    "englishText": f"{item.get('english', {}).get('narrator', '')} {item.get('english', {}).get('text', '')}".strip(),
+                    "grades": [{"grade": "Sahih"}]
+                })
+                if len(results) >= 30: # Limit initial search results
+                    break
+        if len(results) >= 30:
+            break
+            
+    return {"hadiths": results}
