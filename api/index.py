@@ -15,20 +15,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BOOK_METADATA = {
-    "bukhari": {"name": "Sahih al-Bukhari", "arabic": "صحيح البخاري", "file": "bukhari.json"},
-    "muslim": {"name": "Sahih Muslim", "arabic": "صحيح مسلم", "file": "muslim.json"},
-    "abudawud": {"name": "Sunan Abi Dawud", "arabic": "سنن أبي داود", "file": "abudawud.json"},
-    "tirmidhi": {"name": "Jamiʿ at-Tirmidhi", "arabic": "جامع الترمذي", "file": "tirmidhi.json"},
-    "nasai": {"name": "Sunan an-Nasa'i", "arabic": "سنن النسائي", "file": "nasai.json"},
-    "ibnmajah": {"name": "Sunan Ibn Majah", "arabic": "سنن ابن ماجه", "file": "ibnmajah.json"},
-    "malik": {"name": "Muwatta Malik", "arabic": "موطأ مالك", "file": "malik.json"},
-    "ahmed": {"name": "Musnad Ahmad", "arabic": "مسند أحمد", "file": "ahmed.json"},
-    "darimi": {"name": "Sunan ad-Darimi", "arabic": "سنن الدارمي", "file": "darimi.json"},
-}
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = os.path.join(BASE_DIR, "..", "db", "bybooks", "the9books")
+
+# Unified Book Metadata Registry with Directory Paths & Categories
+BOOK_METADATA = {
+    # The 9 Books
+    "bukhari": {"name": "Sahih al-Bukhari", "arabic": "صحيح البخاري", "folder": "the9books", "file": "bukhari.json", "category": "The 9 Books"},
+    "muslim": {"name": "Sahih Muslim", "arabic": "صحيح مسلم", "folder": "the9books", "file": "muslim.json", "category": "The 9 Books"},
+    "abudawud": {"name": "Sunan Abi Dawud", "arabic": "سنن أبي داود", "folder": "the9books", "file": "abudawud.json", "category": "The 9 Books"},
+    "tirmidhi": {"name": "Jamiʿ at-Tirmidhi", "arabic": "جامع الترمذي", "folder": "the9books", "file": "tirmidhi.json", "category": "The 9 Books"},
+    "nasai": {"name": "Sunan an-Nasa'i", "arabic": "سنن النسائي", "folder": "the9books", "file": "nasai.json", "category": "The 9 Books"},
+    "ibnmajah": {"name": "Sunan Ibn Majah", "arabic": "سنن ابن ماجه", "folder": "the9books", "file": "ibnmajah.json", "category": "The 9 Books"},
+    "malik": {"name": "Muwatta Malik", "arabic": "موطأ مالك", "folder": "the9books", "file": "malik.json", "category": "The 9 Books"},
+    "ahmed": {"name": "Musnad Ahmad", "arabic": "مسند أحمد", "folder": "the9books", "file": "ahmed.json", "category": "The 9 Books"},
+    "darimi": {"name": "Sunan ad-Darimi", "arabic": "سنن الدارمي", "folder": "the9books", "file": "darimi.json", "category": "The 9 Books"},
+
+    # Other Primary Collections
+    "aladab_almufrad": {"name": "Al-Adab Al-Mufrad", "arabic": "الأدب المفرد", "folder": "other_books", "file": "aladab_almufrad.json", "category": "Other Collections"},
+    "bulugh_almaram": {"name": "Bulugh al-Maram", "arabic": "بلوغ المرام", "folder": "other_books", "file": "bulugh_almaram.json", "category": "Other Collections"},
+    "mishkat_almasabih": {"name": "Mishkat al-Masabih", "arabic": "مشكاة المصابيح", "folder": "other_books", "file": "mishkat_almasabih.json", "category": "Other Collections"},
+    "riyad_assalihin": {"name": "Riyad as-Salihin", "arabic": "رياض الصالحين", "folder": "other_books", "file": "riyad_assalihin.json", "category": "Other Collections"},
+    "shamail_muhammadiyah": {"name": "Ash-Shama'il Al-Muhammadiyah", "arabic": "الشمائل المحمدية", "folder": "other_books", "file": "shamail_muhammadiyah.json", "category": "Other Collections"},
+
+    # The 40s Collections
+    "nawawi40": {"name": "40 Hadith Nawawi", "arabic": "الأربعون النووية", "folder": "theforties", "file": "nawawi40.json", "category": "The 40 Collections"},
+    "qudsi40": {"name": "40 Hadith Qudsi", "arabic": "الأربعون القدسية", "folder": "theforties", "file": "qudsi40.json", "category": "The 40 Collections"},
+    "shahwaliullah40": {"name": "40 Hadith Shah Waliullah", "arabic": "الأربعون شاه ولي الله", "folder": "theforties", "file": "shahwaliullah40.json", "category": "The 40 Collections"},
+}
 
 CACHE: Dict[str, Any] = {}
 
@@ -39,7 +52,9 @@ def get_book_data(collection: str) -> Dict[str, Any]:
     if collection not in BOOK_METADATA:
         raise HTTPException(status_code=400, detail=f"Invalid collection '{collection}'")
 
-    file_path = os.path.join(DB_DIR, BOOK_METADATA[collection]["file"])
+    meta = BOOK_METADATA[collection]
+    file_path = os.path.join(BASE_DIR, "..", "db", "bybooks", meta["folder"], meta["file"])
+    
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Dataset file missing at: {file_path}")
 
@@ -69,7 +84,7 @@ def get_book_data(collection: str) -> Dict[str, Any]:
                         hadith_list = v
                         break
 
-        # Group chapter metadata if not explicitly provided
+        # Fallback chapter metadata grouping
         if not chapters_map:
             for item in hadith_list:
                 if isinstance(item, dict):
@@ -82,7 +97,7 @@ def get_book_data(collection: str) -> Dict[str, Any]:
                         }
 
         parsed_book = {
-            "metadata": BOOK_METADATA[collection],
+            "metadata": meta,
             "chapters": chapters_map,
             "hadiths": hadith_list
         }
@@ -95,9 +110,14 @@ def get_book_data(collection: str) -> Dict[str, Any]:
 
 @app.get("/api/books")
 def get_books():
-    """Returns list of available books with meta info."""
+    """Returns list of all available books grouped by category."""
     return [
-        {"id": key, "name": meta["name"], "arabic": meta["arabic"]}
+        {
+            "id": key,
+            "name": meta["name"],
+            "arabic": meta["arabic"],
+            "category": meta["category"]
+        }
         for key, meta in BOOK_METADATA.items()
     ]
 
@@ -108,7 +128,6 @@ def get_chapters(collection: str = "bukhari"):
     chapters_list = list(book["chapters"].values())
     chapters_list.sort(key=lambda x: int(x["id"]) if str(x["id"]).isdigit() else x["id"])
     
-    # Calculate hadith counts per chapter
     counts = {}
     for item in book["hadiths"]:
         if isinstance(item, dict):
@@ -129,13 +148,11 @@ def get_chapters(collection: str = "bukhari"):
 def get_hadiths(collection: str = "bukhari", chapter: int = 1):
     book = get_book_data(collection)
     
-    # Filter hadiths for the selected chapter
     filtered = [
         item for item in book["hadiths"]
         if isinstance(item, dict) and (item.get("chapterId") == chapter or item.get("chapter_id") == chapter)
     ]
 
-    # Fallback if no matching chapter ID found
     if not filtered and chapter == 1:
         filtered = book["hadiths"][:50]
 

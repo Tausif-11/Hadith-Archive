@@ -7,14 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
   navigateToBooks();
 });
 
-// Icon Initialization
 function refreshIcons() {
   if (window.lucide) {
     lucide.createIcons();
   }
 }
 
-// Theme Switcher
 function initTheme() {
   const savedTheme = localStorage.getItem("theme") || "light";
   document.documentElement.setAttribute("data-theme", savedTheme);
@@ -37,7 +35,6 @@ function updateThemeIcon(theme) {
   }
 }
 
-// Navigation & Breadcrumbs
 function updateBreadcrumbs(crumbs) {
   const bar = document.getElementById("breadcrumb");
   bar.innerHTML = "";
@@ -62,7 +59,7 @@ function showSection(sectionId) {
   document.getElementById(sectionId).classList.remove("hidden");
 }
 
-// Level 1: Render All Books Grid
+// Render Categorized Books View
 async function navigateToBooks() {
   showSection("viewBooks");
   updateBreadcrumbs([{ label: "Collections", action: navigateToBooks }]);
@@ -75,24 +72,42 @@ async function navigateToBooks() {
     const books = await res.json();
     grid.innerHTML = "";
 
-    books.forEach(book => {
-      const card = document.createElement("div");
-      card.className = "book-card";
-      card.onclick = () => loadChapters(book.id);
-      card.innerHTML = `
-        <div>
-          <div class="book-title">${book.name}</div>
-          <div class="book-arabic">${book.arabic}</div>
-        </div>
-      `;
-      grid.appendChild(card);
+    // Group books by category
+    const categories = {};
+    books.forEach(b => {
+      if (!categories[b.category]) categories[b.category] = [];
+      categories[b.category].push(b);
     });
+
+    for (const [catName, catBooks] of Object.entries(categories)) {
+      const catHeading = document.createElement("h3");
+      catHeading.className = "category-title";
+      catHeading.innerText = catName;
+      grid.appendChild(catHeading);
+
+      const catGrid = document.createElement("div");
+      catGrid.className = "books-grid-category";
+
+      catBooks.forEach(book => {
+        const card = document.createElement("div");
+        card.className = "book-card";
+        card.onclick = () => loadChapters(book.id);
+        card.innerHTML = `
+          <div>
+            <div class="book-title">${book.name}</div>
+            <div class="book-arabic">${book.arabic}</div>
+          </div>
+        `;
+        catGrid.appendChild(card);
+      });
+
+      grid.appendChild(catGrid);
+    }
   } catch (err) {
     grid.innerHTML = `<p style="color:red">Failed to load collections: ${err.message}</p>`;
   }
 }
 
-// Level 2: Render Chapters List
 async function loadChapters(collectionId) {
   currentCollection = collectionId;
   showSection("viewChapters");
@@ -131,7 +146,6 @@ async function loadChapters(collectionId) {
   }
 }
 
-// Level 3: Render Hadiths for Selected Chapter
 async function loadHadiths(collectionId, chapterId) {
   currentCollection = collectionId;
   currentChapter = parseInt(chapterId);
@@ -193,7 +207,6 @@ function createHadithCard(hadith) {
     <div class="arabic-text">${hadith.arabicText}</div>
     <div class="english-text">${hadith.englishText}</div>
     
-    <!-- Reference Box -->
     <div class="reference-box">
       <div><strong>In-book reference:</strong> ${hadith.reference.inBook}</div>
       <div><strong>USC-MSA web (English) reference:</strong> ${hadith.reference.uscMsa}</div>
