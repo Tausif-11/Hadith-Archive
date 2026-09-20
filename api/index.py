@@ -198,3 +198,66 @@ def get_hadiths(collection: str = "bukhari", chapter: int = 1):
 PUBLIC_DIR = os.path.join(BASE_DIR, "..", "public")
 if os.path.isdir(PUBLIC_DIR):
     app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
+
+@app.get("/api/search")
+def search_hadiths(query: str, collection: str = "all"):
+    """Full-text search across loaded Hadith collections."""
+    if not query or len(query.strip()) < 2:
+        return {"query": query, "results": []}
+
+    q = query.strip().lower()
+    results = []
+    
+    # Determine which collections to search
+    target_collections = [collection] if collection != "all" and collection in BOOK_METADATA else list(BOOK_METADATA.keys())
+
+    for col in target_collections:
+        try:
+            book = get_book_data(col)
+        except Exception:
+            continue  # Skip missing or unparseable files
+
+        meta = book["metadata"]
+        
+        for idx, item in enumerate(book["hadiths"], 1):
+            if not isinstance(item, dict):
+                continue
+
+            arabic_text = item.get("arabic", "")
+            
+            eng_text = ""
+            eng_data = item.get("english")
+            if isinstance(eng_data, dict):
+                narrator = eng_data.get("narrator", "")
+                text = eng_data.get("text", "")
+                eng_text = f"{narrator} {text}".strip()
+            elif isinstance(eng_data, str):
+                eng_text = eng_data
+
+            # Match query against English text, Arabic text, or Hadith number
+            h_id = str(item.get("id") or idx)
+            ch_id = item.get("chapterId") or item.get("chapter_id") or 1
+
+            if q in eng_text.lower() or q in arabic_text or q == h_id:
+                results.append({
+                    "id": f"{col}_{h_id}",
+                    "collection": col,
+                    "bookName": meta["name"],
+                    "hadithNumber": h_id,
+                    "chapterId": ch_id,
+                    "arabicText": arabic_text,
+                    "englishText": eng_text or "Translation unavailable.",
+                    "grade": "Sahih" if col in ["bukhari", "muslim"] else "Hasan / Sahih",
+                    "reference": {
+                        "inBook": f"Book {ch_id}, Hadith {idx}",
+                        "uscMsa": f"Vol. {ch_id}, Book {ch_id}, Hadith {h_id}"
+                    }
+                })
+
+            # Limit total search results to prevent huge paylod sizes
+            if len(results) >= 100:
+                break
+        if len(results) >= 100:
+            break
+
+    return {"query": query, "count": len(results), "results": results}

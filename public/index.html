@@ -41,7 +41,16 @@
       <span class="crumb active" onclick="navigateToBooks()">Collections</span>
     </div>
   </div>
-
+<div class="search-container">
+  <i data-lucide="search" class="search-icon"></i>
+  <input 
+    type="text" 
+    id="searchInput" 
+    class="search-input" 
+    placeholder="Search Hadith text, narrator, or topic across all 17 books..." 
+    oninput="filterBooks()" 
+  />
+</div>
   <!-- Main Container -->
   <main class="container main-content">
     

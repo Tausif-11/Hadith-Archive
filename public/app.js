@@ -300,3 +300,68 @@ function copyToClipboard(btn) {
   refreshIcons();
   setTimeout(() => { btn.innerHTML = originalHTML; refreshIcons(); }, 2000);
 }
+
+let searchDebounceTimeout = null;
+
+function filterBooks() {
+  const query = document.getElementById("searchInput").value.trim();
+  
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+
+  if (query.length < 2) {
+    // If search is cleared, revert to book collections view
+    if (document.getElementById("viewBooks").classList.contains("hidden")) {
+      navigateToBooks();
+    } else {
+      renderBooksGrid(allBooksData);
+    }
+    return;
+  }
+
+  // Debounce network requests by 300ms for fast typing
+  searchDebounceTimeout = setTimeout(() => {
+    executeSearch(query);
+  }, 300);
+}
+
+async function executeSearch(query) {
+  showSection("viewHadiths");
+  
+  const container = document.getElementById("hadithContainer");
+  container.innerHTML = `<p>Searching collections for "<strong>${query}</strong>"...</p>`;
+
+  document.getElementById("chapterBadge").innerText = "Search";
+  document.getElementById("chapterTitleEnglish").innerText = `Results for "${query}"`;
+  document.getElementById("chapterTitleArabic").innerText = "";
+
+  updateBreadcrumbs([
+    { label: "Collections", action: navigateToBooks },
+    { label: `Search: "${query}"`, action: null }
+  ]);
+
+  try {
+    const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    container.innerHTML = "";
+
+    if (!data.results || data.results.length === 0) {
+      container.innerHTML = `<p style="padding: 2rem 0; text-align: center; color: var(--text-secondary);">No Hadiths found matching "<strong>${query}</strong>".</p>`;
+      return;
+    }
+
+    // Display match count header
+    const countHeader = document.createElement("div");
+    countHeader.style.cssText = "margin-bottom: 1rem; font-weight: 600; color: var(--text-secondary);";
+    countHeader.innerText = `Found ${data.count} result${data.count === 1 ? '' : 's'}`;
+    container.appendChild(countHeader);
+
+    data.results.forEach(h => {
+      container.appendChild(createHadithCard(h));
+    });
+
+    refreshIcons();
+  } catch (err) {
+    container.innerHTML = `<p style="color:red">Search failed: ${err.message}</p>`;
+  }
+}
