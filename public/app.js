@@ -2,10 +2,22 @@ let currentCollection = '';
 let currentChapter = 1;
 let currentBookMeta = null;
 let allBooksData = [];
+let activeSearchQuery = '';
+let searchDebounceTimeout = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  navigateToBooks();
+  
+  // Listen to browser Back/Forward navigation
+  window.addEventListener("popstate", (e) => {
+    if (e.state) {
+      restoreState(e.state, false);
+    } else {
+      navigateToBooks(false);
+    }
+  });
+
+  navigateToBooks(false);
 });
 
 function refreshIcons() {
@@ -36,9 +48,34 @@ function updateThemeIcon(theme) {
   }
 }
 
+// Restore state from Browser History
+function restoreState(state, push = false) {
+  if (state.view === "books") {
+    navigateToBooks(push);
+  } else if (state.view === "chapters") {
+    loadChapters(state.collection, push);
+  } else if (state.view === "hadiths") {
+    loadHadiths(state.collection, state.chapter, push);
+  } else if (state.view === "search") {
+    executeSearch(state.query, push);
+  }
+}
+
+function goBack() {
+  window.history.back();
+}
+
 function updateBreadcrumbs(crumbs) {
   const bar = document.getElementById("breadcrumb");
   bar.innerHTML = "";
+
+  // Dedicated Back Button in Breadcrumbs
+  const backBtn = document.createElement("button");
+  backBtn.className = "btn btn-back";
+  backBtn.innerHTML = `<i data-lucide="arrow-left"></i> Back`;
+  backBtn.onclick = goBack;
+  bar.appendChild(backBtn);
+
   crumbs.forEach((crumb, index) => {
     const span = document.createElement("span");
     span.className = `crumb ${index === crumbs.length - 1 ? 'active' : ''}`;
@@ -53,6 +90,8 @@ function updateBreadcrumbs(crumbs) {
       bar.appendChild(sep);
     }
   });
+
+  refreshIcons();
 }
 
 function showSection(sectionId) {
@@ -61,10 +100,15 @@ function showSection(sectionId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* Render Dynamic Books Grid with Live Search Filter */
-async function navigateToBooks() {
+// Collections Main View
+async function navigateToBooks(pushHistory = true) {
+  activeSearchQuery = '';
   showSection("viewBooks");
-  updateBreadcrumbs([{ label: "Collections", action: navigateToBooks }]);
+  updateBreadcrumbs([{ label: "Collections", action: () => navigateToBooks() }]);
+
+  if (pushHistory) {
+    history.pushState({ view: "books" }, "", "/");
+  }
 
   const grid = document.getElementById("booksGrid");
 
@@ -85,11 +129,6 @@ async function navigateToBooks() {
 function renderBooksGrid(books) {
   const grid = document.getElementById("booksGrid");
   grid.innerHTML = "";
-
-  if (books.length === 0) {
-    grid.innerHTML = "<p>No matching collections found.</p>";
-    return;
-  }
 
   const categories = {};
   books.forEach(b => {
@@ -123,17 +162,79 @@ function renderBooksGrid(books) {
   }
 }
 
+// Handle Search Input & Debounce
 function filterBooks() {
-  const query = document.getElementById("searchInput").value.toLowerCase();
-  const filtered = allBooksData.filter(b => 
-    b.name.toLowerCase().includes(query) || b.arabic.includes(query)
-  );
-  renderBooksGrid(filtered);
+  const query = document.getElementById("searchInput").value.trim();
+  
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+
+  if (query.length < 2) {
+    if (document.getElementById("viewBooks").classList.contains("hidden")) {
+      navigateToBooks();
+    }
+    return;
+  }
+
+  searchDebounceTimeout = setTimeout(() => {
+    executeSearch(query);
+  }, 300);
 }
 
-async function loadChapters(collectionId) {
+// Sunnah.com Style Full Text Search Execution
+async function executeSearch(query, pushHistory = true) {
+  activeSearchQuery = query;
+  showSection("viewHadiths");
+
+  if (pushHistory) {
+    history.pushState({ view: "search", query: query }, "", `?search=${encodeURIComponent(query)}`);
+  }
+  
+  const container = document.getElementById("hadithContainer");
+  container.innerHTML = `<p>Searching all collections starting from <strong>Sahih al-Bukhari</strong> for "<strong>${query}</strong>"...</p>`;
+
+  document.getElementById("chapterBadge").innerText = "Search";
+  document.getElementById("chapterTitleEnglish").innerText = `Results for "${query}"`;
+  document.getElementById("chapterTitleArabic").innerText = "";
+
+  updateBreadcrumbs([
+    { label: "Collections", action: () => navigateToBooks() },
+    { label: `Search: "${query}"`, action: null }
+  ]);
+
+  try {
+    const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    container.innerHTML = "";
+
+    if (!data.results || data.results.length === 0) {
+      container.innerHTML = `<p style="padding: 2rem 0; text-align: center; color: var(--text-secondary);">No Hadiths found matching "<strong>${query}</strong>".</p>`;
+      return;
+    }
+
+    const countHeader = document.createElement("div");
+    countHeader.style.cssText = "margin-bottom: 1.5rem; font-weight: 600; color: var(--text-secondary);";
+    countHeader.innerText = `Found ${data.count} result${data.count === 1 ? '' : 's'} across books (Ordered by Sahih Bukhari, Sahih Muslim, etc.)`;
+    container.appendChild(countHeader);
+
+    data.results.forEach(h => {
+      container.appendChild(createHadithCard(h, query));
+    });
+
+    refreshIcons();
+  } catch (err) {
+    container.innerHTML = `<p style="color:red">Search failed: ${err.message}</p>`;
+  }
+}
+
+// Chapter View with Explicit Chapter Names
+async function loadChapters(collectionId, pushHistory = true) {
   currentCollection = collectionId;
   showSection("viewChapters");
+
+  if (pushHistory) {
+    history.pushState({ view: "chapters", collection: collectionId }, "", `?book=${collectionId}`);
+  }
 
   const list = document.getElementById("chaptersList");
   list.innerHTML = "<p>Loading chapters...</p>";
@@ -147,7 +248,7 @@ async function loadChapters(collectionId) {
     document.getElementById("chapterBookArabic").innerText = data.bookInfo.arabic;
 
     updateBreadcrumbs([
-      { label: "Collections", action: navigateToBooks },
+      { label: "Collections", action: () => navigateToBooks() },
       { label: data.bookInfo.name, action: () => loadChapters(collectionId) }
     ]);
 
@@ -159,6 +260,7 @@ async function loadChapters(collectionId) {
       item.innerHTML = `
         <div>
           <strong>Chapter ${ch.id}:</strong> ${ch.title}
+          ${ch.arabic ? `<div style="font-family:var(--font-arabic); color:var(--brand-color); font-size:1.1rem;">${ch.arabic}</div>` : ''}
         </div>
         <span class="chapter-badge">${ch.count || 0} Hadiths</span>
       `;
@@ -169,10 +271,15 @@ async function loadChapters(collectionId) {
   }
 }
 
-async function loadHadiths(collectionId, chapterId) {
+// Hadith View
+async function loadHadiths(collectionId, chapterId, pushHistory = true) {
   currentCollection = collectionId;
   currentChapter = parseInt(chapterId);
   showSection("viewHadiths");
+
+  if (pushHistory) {
+    history.pushState({ view: "hadiths", collection: collectionId, chapter: chapterId }, "", `?book=${collectionId}&chapter=${chapterId}`);
+  }
 
   const container = document.getElementById("hadithContainer");
   container.innerHTML = "<p>Loading hadiths...</p>";
@@ -186,7 +293,7 @@ async function loadHadiths(collectionId, chapterId) {
     document.getElementById("chapterTitleArabic").innerText = data.chapterInfo.arabic || "";
 
     updateBreadcrumbs([
-      { label: "Collections", action: navigateToBooks },
+      { label: "Collections", action: () => navigateToBooks() },
       { label: data.bookInfo.name, action: () => loadChapters(collectionId) },
       { label: `Chapter ${chapterId}`, action: null }
     ]);
@@ -214,21 +321,34 @@ function navigateChapter(delta) {
   }
 }
 
-function createHadithCard(hadith) {
+// Highlight exact search matches in HTML text
+function highlightText(text, query) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(regex, `<mark class="highlight-search">$1</mark>`);
+}
+
+function createHadithCard(hadith, searchQuery = '') {
   const card = document.createElement("article");
   card.className = "hadith-card";
 
   const bookmarks = JSON.parse(localStorage.getItem("hadith_bookmarks") || "[]");
   const isBookmarked = bookmarks.some(b => b.id === hadith.id);
 
+  const engText = highlightText(hadith.englishText, searchQuery);
+  const araText = highlightText(hadith.arabicText, searchQuery);
+
   card.innerHTML = `
     <div class="card-top">
-      <span class="hadith-tag">Hadith #${hadith.hadithNumber}</span>
+      <div>
+        <span class="hadith-tag">${hadith.bookName || 'Hadith'} #${hadith.hadithNumber}</span>
+        ${hadith.chapterTitle ? `<span style="margin-left:8px; font-weight:600; color:var(--text-secondary);">${hadith.chapterTitle}</span>` : ''}
+      </div>
       <span class="hadith-grade">Grade: ${hadith.grade}</span>
     </div>
     
-    <div class="arabic-text">${hadith.arabicText}</div>
-    <div class="english-text">${hadith.englishText}</div>
+    <div class="arabic-text">${araText}</div>
+    <div class="english-text">${engText}</div>
     
     <div class="reference-box">
       <div><strong>In-book reference:</strong> ${hadith.reference.inBook}</div>
@@ -263,31 +383,6 @@ function toggleBookmark(hadith, btn) {
   refreshIcons();
 }
 
-function toggleFavoritesView() {
-  const container = document.getElementById("hadithContainer");
-  showSection("viewHadiths");
-
-  updateBreadcrumbs([
-    { label: "Collections", action: navigateToBooks },
-    { label: "Bookmarks", action: null }
-  ]);
-
-  document.getElementById("chapterBadge").innerText = "Saved";
-  document.getElementById("chapterTitleEnglish").innerText = "Bookmarked Hadiths";
-  document.getElementById("chapterTitleArabic").innerText = "";
-
-  const bookmarks = JSON.parse(localStorage.getItem("hadith_bookmarks") || "[]");
-  container.innerHTML = "";
-
-  if (bookmarks.length === 0) {
-    container.innerHTML = "<p>No bookmarked hadiths yet.</p>";
-    return;
-  }
-
-  bookmarks.forEach(h => container.appendChild(createHadithCard(h)));
-  refreshIcons();
-}
-
 function copyToClipboard(btn) {
   const card = btn.closest(".hadith-card");
   const arabic = card.querySelector(".arabic-text").innerText;
@@ -299,69 +394,4 @@ function copyToClipboard(btn) {
   btn.innerHTML = `<i data-lucide="check"></i> Copied!`;
   refreshIcons();
   setTimeout(() => { btn.innerHTML = originalHTML; refreshIcons(); }, 2000);
-}
-
-let searchDebounceTimeout = null;
-
-function filterBooks() {
-  const query = document.getElementById("searchInput").value.trim();
-  
-  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
-
-  if (query.length < 2) {
-    // If search is cleared, revert to book collections view
-    if (document.getElementById("viewBooks").classList.contains("hidden")) {
-      navigateToBooks();
-    } else {
-      renderBooksGrid(allBooksData);
-    }
-    return;
-  }
-
-  // Debounce network requests by 300ms for fast typing
-  searchDebounceTimeout = setTimeout(() => {
-    executeSearch(query);
-  }, 300);
-}
-
-async function executeSearch(query) {
-  showSection("viewHadiths");
-  
-  const container = document.getElementById("hadithContainer");
-  container.innerHTML = `<p>Searching collections for "<strong>${query}</strong>"...</p>`;
-
-  document.getElementById("chapterBadge").innerText = "Search";
-  document.getElementById("chapterTitleEnglish").innerText = `Results for "${query}"`;
-  document.getElementById("chapterTitleArabic").innerText = "";
-
-  updateBreadcrumbs([
-    { label: "Collections", action: navigateToBooks },
-    { label: `Search: "${query}"`, action: null }
-  ]);
-
-  try {
-    const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
-    const data = await res.json();
-
-    container.innerHTML = "";
-
-    if (!data.results || data.results.length === 0) {
-      container.innerHTML = `<p style="padding: 2rem 0; text-align: center; color: var(--text-secondary);">No Hadiths found matching "<strong>${query}</strong>".</p>`;
-      return;
-    }
-
-    // Display match count header
-    const countHeader = document.createElement("div");
-    countHeader.style.cssText = "margin-bottom: 1rem; font-weight: 600; color: var(--text-secondary);";
-    countHeader.innerText = `Found ${data.count} result${data.count === 1 ? '' : 's'}`;
-    container.appendChild(countHeader);
-
-    data.results.forEach(h => {
-      container.appendChild(createHadithCard(h));
-    });
-
-    refreshIcons();
-  } catch (err) {
-    container.innerHTML = `<p style="color:red">Search failed: ${err.message}</p>`;
-  }
 }

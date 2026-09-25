@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Dict, List, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,9 +18,14 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Unified Book Metadata Registry with Directory Paths & Categories
+# Canonical Order: Sahih Bukhari -> Sahih Muslim -> Sunan -> Other Books -> The 40s
+BOOK_ORDER = [
+    "bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "malik", "ahmed", "darimi",
+    "aladab_almufrad", "bulugh_almaram", "mishkat_almasabih", "riyad_assalihin", "shamail_muhammadiyah",
+    "nawawi40", "qudsi40", "shahwaliullah40"
+]
+
 BOOK_METADATA = {
-    # The 9 Books
     "bukhari": {"name": "Sahih al-Bukhari", "arabic": "صحيح البخاري", "folder": "the9books", "file": "bukhari.json", "category": "The 9 Books"},
     "muslim": {"name": "Sahih Muslim", "arabic": "صحيح مسلم", "folder": "the9books", "file": "muslim.json", "category": "The 9 Books"},
     "abudawud": {"name": "Sunan Abi Dawud", "arabic": "سنن أبي داود", "folder": "the9books", "file": "abudawud.json", "category": "The 9 Books"},
@@ -29,15 +35,11 @@ BOOK_METADATA = {
     "malik": {"name": "Muwatta Malik", "arabic": "موطأ مالك", "folder": "the9books", "file": "malik.json", "category": "The 9 Books"},
     "ahmed": {"name": "Musnad Ahmad", "arabic": "مسند أحمد", "folder": "the9books", "file": "ahmed.json", "category": "The 9 Books"},
     "darimi": {"name": "Sunan ad-Darimi", "arabic": "سنن الدارمي", "folder": "the9books", "file": "darimi.json", "category": "The 9 Books"},
-
-    # Other Primary Collections
     "aladab_almufrad": {"name": "Al-Adab Al-Mufrad", "arabic": "الأدب المفرد", "folder": "other_books", "file": "aladab_almufrad.json", "category": "Other Collections"},
     "bulugh_almaram": {"name": "Bulugh al-Maram", "arabic": "بلوغ المرام", "folder": "other_books", "file": "bulugh_almaram.json", "category": "Other Collections"},
     "mishkat_almasabih": {"name": "Mishkat al-Masabih", "arabic": "مشكاة المصابيح", "folder": "other_books", "file": "mishkat_almasabih.json", "category": "Other Collections"},
     "riyad_assalihin": {"name": "Riyad as-Salihin", "arabic": "رياض الصالحين", "folder": "other_books", "file": "riyad_assalihin.json", "category": "Other Collections"},
     "shamail_muhammadiyah": {"name": "Ash-Shama'il Al-Muhammadiyah", "arabic": "الشمائل المحمدية", "folder": "other_books", "file": "shamail_muhammadiyah.json", "category": "Other Collections"},
-
-    # The 40s Collections
     "nawawi40": {"name": "40 Hadith Nawawi", "arabic": "الأربعون النووية", "folder": "theforties", "file": "nawawi40.json", "category": "The 40 Collections"},
     "qudsi40": {"name": "40 Hadith Qudsi", "arabic": "الأربعون القدسية", "folder": "theforties", "file": "qudsi40.json", "category": "The 40 Collections"},
     "shahwaliullah40": {"name": "40 Hadith Shah Waliullah", "arabic": "الأربعون شاه ولي الله", "folder": "theforties", "file": "shahwaliullah40.json", "category": "The 40 Collections"},
@@ -56,7 +58,7 @@ def get_book_data(collection: str) -> Dict[str, Any]:
     file_path = os.path.join(BASE_DIR, "..", "db", "bybooks", meta["folder"], meta["file"])
     
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"Dataset file missing at: {file_path}")
+        raise HTTPException(status_code=404, detail=f"Dataset missing at {file_path}")
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -68,33 +70,30 @@ def get_book_data(collection: str) -> Dict[str, Any]:
         if isinstance(raw_data, list):
             hadith_list = raw_data
         elif isinstance(raw_data, dict):
-            if "hadiths" in raw_data:
-                hadith_list = raw_data["hadiths"]
-            elif "chapters" in raw_data:
+            if "chapters" in raw_data:
                 for ch in raw_data["chapters"]:
-                    c_id = ch.get("id") or ch.get("chapterId")
-                    c_title = ch.get("english") or ch.get("title") or f"Chapter {c_id}"
-                    c_arabic = ch.get("arabic") or ""
+                    c_id = ch.get("id") or ch.get("chapterId") or ch.get("number")
+                    c_title = ch.get("english") or ch.get("title") or ch.get("name") or f"Chapter {c_id}"
+                    c_arabic = ch.get("arabic") or ch.get("arabicTitle") or ""
                     chapters_map[c_id] = {"id": c_id, "title": c_title, "arabic": c_arabic}
                     if "hadiths" in ch:
                         hadith_list.extend(ch["hadiths"])
-            else:
-                for v in raw_data.values():
-                    if isinstance(v, list):
-                        hadith_list = v
-                        break
+            elif "hadiths" in raw_data:
+                hadith_list = raw_data["hadiths"]
 
-        # Fallback chapter metadata grouping
-        if not chapters_map:
-            for item in hadith_list:
-                if isinstance(item, dict):
-                    c_id = item.get("chapterId") or item.get("chapter_id") or 1
-                    if c_id not in chapters_map:
-                        chapters_map[c_id] = {
-                            "id": c_id,
-                            "title": f"Chapter {c_id}",
-                            "arabic": item.get("chapterArabic", "")
-                        }
+        # Parse chapter names directly from individual Hadith metadata if missing
+        for idx, item in enumerate(hadith_list, 1):
+            if isinstance(item, dict):
+                c_id = item.get("chapterId") or item.get("chapter_id") or 1
+                ch_eng = item.get("chapterTitle") or item.get("chapterEnglish") or f"Chapter {c_id}"
+                ch_ara = item.get("chapterArabic") or ""
+                
+                if c_id not in chapters_map:
+                    chapters_map[c_id] = {
+                        "id": c_id,
+                        "title": ch_eng,
+                        "arabic": ch_ara
+                    }
 
         parsed_book = {
             "metadata": meta,
@@ -110,15 +109,14 @@ def get_book_data(collection: str) -> Dict[str, Any]:
 
 @app.get("/api/books")
 def get_books():
-    """Returns list of all available books grouped by category."""
     return [
         {
             "id": key,
-            "name": meta["name"],
-            "arabic": meta["arabic"],
-            "category": meta["category"]
+            "name": BOOK_METADATA[key]["name"],
+            "arabic": BOOK_METADATA[key]["arabic"],
+            "category": BOOK_METADATA[key]["category"]
         }
-        for key, meta in BOOK_METADATA.items()
+        for key in BOOK_ORDER
     ]
 
 
@@ -176,8 +174,11 @@ def get_hadiths(collection: str = "bukhari", chapter: int = 1):
 
         formatted_hadiths.append({
             "id": f"{collection}_{h_id}",
+            "collection": collection,
+            "bookName": book["metadata"]["name"],
             "hadithNumber": h_id,
             "chapterId": chapter,
+            "chapterTitle": chapter_info.get("title", f"Chapter {chapter}"),
             "arabicText": item.get("arabic", ""),
             "englishText": eng_text or "Translation unavailable.",
             "grade": "Sahih" if collection in ["bukhari", "muslim"] else "Hasan / Sahih",
@@ -195,27 +196,27 @@ def get_hadiths(collection: str = "bukhari", chapter: int = 1):
         "hadiths": formatted_hadiths
     }
 
-PUBLIC_DIR = os.path.join(BASE_DIR, "..", "public")
-if os.path.isdir(PUBLIC_DIR):
-    app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
 
 @app.get("/api/search")
 def search_hadiths(query: str, collection: str = "all"):
-    """Full-text search across loaded Hadith collections."""
+    """Sunnah.com style Search: Strict Ordering (Bukhari -> Muslim -> Sunan -> Others)."""
     if not query or len(query.strip()) < 2:
         return {"query": query, "results": []}
 
     q = query.strip().lower()
     results = []
-    
-    # Determine which collections to search
-    target_collections = [collection] if collection != "all" and collection in BOOK_METADATA else list(BOOK_METADATA.keys())
 
-    for col in target_collections:
+    # Filter collections preserving strict canonical priority order
+    if collection != "all" and collection in BOOK_METADATA:
+        search_order = [collection]
+    else:
+        search_order = BOOK_ORDER
+
+    for col in search_order:
         try:
             book = get_book_data(col)
         except Exception:
-            continue  # Skip missing or unparseable files
+            continue
 
         meta = book["metadata"]
         
@@ -224,7 +225,6 @@ def search_hadiths(query: str, collection: str = "all"):
                 continue
 
             arabic_text = item.get("arabic", "")
-            
             eng_text = ""
             eng_data = item.get("english")
             if isinstance(eng_data, dict):
@@ -234,10 +234,12 @@ def search_hadiths(query: str, collection: str = "all"):
             elif isinstance(eng_data, str):
                 eng_text = eng_data
 
-            # Match query against English text, Arabic text, or Hadith number
             h_id = str(item.get("id") or idx)
             ch_id = item.get("chapterId") or item.get("chapter_id") or 1
+            ch_info = book["chapters"].get(ch_id, {})
+            ch_title = ch_info.get("title") or f"Chapter {ch_id}"
 
+            # Match against English, Arabic, or Hadith ID
             if q in eng_text.lower() or q in arabic_text or q == h_id:
                 results.append({
                     "id": f"{col}_{h_id}",
@@ -245,6 +247,7 @@ def search_hadiths(query: str, collection: str = "all"):
                     "bookName": meta["name"],
                     "hadithNumber": h_id,
                     "chapterId": ch_id,
+                    "chapterTitle": ch_title,
                     "arabicText": arabic_text,
                     "englishText": eng_text or "Translation unavailable.",
                     "grade": "Sahih" if col in ["bukhari", "muslim"] else "Hasan / Sahih",
@@ -254,10 +257,13 @@ def search_hadiths(query: str, collection: str = "all"):
                     }
                 })
 
-            # Limit total search results to prevent huge paylod sizes
-            if len(results) >= 100:
+            if len(results) >= 150:
                 break
-        if len(results) >= 100:
+        if len(results) >= 150:
             break
 
     return {"query": query, "count": len(results), "results": results}
+
+PUBLIC_DIR = os.path.join(BASE_DIR, "..", "public")
+if os.path.isdir(PUBLIC_DIR):
+    app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
