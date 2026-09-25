@@ -1,96 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HadithArchive</title>
-  <link rel="stylesheet" href="style.css">
   
-  <!-- Indo-Pak / Naskh Compatible Fonts -->
+  <!-- Absolute path ensures CSS loads regardless of URL parameters -->
+  <link rel="stylesheet" href="/style.css">
+  
+  <!-- Google Fonts for Arabic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
-  <!-- Navbar -->
-  <header class="navbar">
-    <div class="nav-container">
-      <div class="brand" onclick="navigateToBooks()">
-        <i data-lucide="book-open"></i>
-        <span>HadithArchive</span>
-      </div>
-      
-      <div class="nav-actions">
-        <button class="icon-btn" onclick="toggleFavoritesView()" title="Bookmarks" id="favBtn">
-          <i data-lucide="bookmark"></i>
-        </button>
-        <button class="icon-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
-          <i data-lucide="sun" id="themeIcon"></i>
-        </button>
-      </div>
+  <!-- Top Navbar -->
+  <nav class="navbar">
+    <div class="logo-group" onclick="navigateToBooks()">
+      <i data-lucide="book-open" class="logo-icon"></i>
+      <h2>HadithArchive</h2>
     </div>
-  </header>
+    <div class="nav-actions">
+      <button class="btn btn-icon" onclick="toggleFavoritesView()" title="Bookmarks">
+        <i data-lucide="bookmark"></i>
+      </button>
+      <button class="btn btn-icon" onclick="toggleTheme()" title="Toggle Theme">
+        <i id="themeIcon" data-lucide="moon"></i>
+      </button>
+    </div>
+  </nav>
 
-  <!-- Breadcrumb Navigation Bar -->
-  <div class="breadcrumb-bar">
-    <div class="container" id="breadcrumb">
-      <span class="crumb active" onclick="navigateToBooks()">Collections</span>
-    </div>
+  <!-- Breadcrumbs & Navigation Bar -->
+  <div class="breadcrumb-container">
+    <div id="breadcrumb"></div>
   </div>
-<div class="search-container">
-  <i data-lucide="search" class="search-icon"></i>
-  <input 
-    type="text" 
-    id="searchInput" 
-    class="search-input" 
-    placeholder="Search Hadith text, narrator, or topic across all 17 books..." 
-    oninput="filterBooks()" 
-  />
-</div>
-  <!-- Main Container -->
-  <main class="container main-content">
+
+  <main class="container">
     
-    <!-- View 1: Books Grid -->
+    <!-- Collections View -->
     <section id="viewBooks" class="view-section">
-      <h2 class="section-title">Hadith Collections</h2>
-      <div class="books-grid" id="booksGrid"></div>
-    </section>
-
-    <!-- View 2: Chapters List -->
-    <section id="viewChapters" class="view-section hidden">
-      <div class="book-header">
-        <h2 id="chapterBookTitle">Collection Name</h2>
-        <p id="chapterBookArabic" class="arabic-sub"></p>
+      <div class="search-container">
+        <i data-lucide="search" class="search-icon"></i>
+        <input 
+          type="text" 
+          id="searchInput" 
+          class="search-input" 
+          placeholder="Search Hadith text, narrator, or topic across all books..." 
+          oninput="filterBooks()" 
+        />
       </div>
-      <div class="chapters-list" id="chaptersList"></div>
+
+      <h2 style="margin-bottom: 1rem;">Hadith Collections</h2>
+      <div id="booksGrid"></div>
     </section>
 
-    <!-- View 3: Hadiths List -->
-    <section id="viewHadiths" class="view-section hidden">
-      <!-- Chapter Title Header at top of chapter section -->
-      <div class="chapter-banner">
-        <div class="chapter-banner-info">
-          <span class="chapter-badge" id="chapterBadge">Chapter 1</span>
-          <h2 id="chapterTitleEnglish">Chapter Name</h2>
-          <h3 id="chapterTitleArabic" class="arabic-text-header"></h3>
+    <!-- Chapters View -->
+    <section id="viewChapters" class="view-section hidden">
+      <div class="chapter-nav-bar">
+        <div>
+          <h2 id="chapterBookTitle">Collection</h2>
+          <div id="chapterBookArabic" style="font-family: var(--font-arabic); color: var(--brand-color);"></div>
         </div>
+      </div>
+      <div id="chaptersList" class="chapters-list"></div>
+    </section>
 
-      
-        <div class="chapter-pagination">
-          <button class="btn" onclick="navigateChapter(-1)"><i data-lucide="chevron-left"></i> Previous</button>
+    <!-- Hadith Display View -->
+    <section id="viewHadiths" class="view-section hidden">
+      <div class="chapter-nav-bar">
+        <div>
+          <span id="chapterBadge" class="chapter-badge">Chapter</span>
+          <h2 id="chapterTitleEnglish" style="display:inline; margin-left: 0.5rem;">Chapter Title</h2>
+          <div id="chapterTitleArabic" style="font-family: var(--font-arabic); color: var(--brand-color); font-size: 1.2rem;"></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn" onclick="navigateChapter(-1)"><i data-lucide="chevron-left"></i> Prev</button>
           <button class="btn" onclick="navigateChapter(1)">Next <i data-lucide="chevron-right"></i></button>
         </div>
       </div>
-
-      <div class="hadith-feed" id="hadithContainer"></div>
+      <div id="hadithContainer"></div>
     </section>
 
   </main>
 
-  <script src="app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

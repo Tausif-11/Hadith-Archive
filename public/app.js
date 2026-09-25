@@ -48,28 +48,33 @@ function updateThemeIcon(theme) {
   }
 }
 
-// Restore state from Browser History
 function restoreState(state, push = false) {
-  if (state.view === "books") {
+  if (!state || state.view === "books") {
     navigateToBooks(push);
-  } else if (state.view === "chapters") {
+  } else if (state.view === "chapters" && state.collection) {
     loadChapters(state.collection, push);
-  } else if (state.view === "hadiths") {
-    loadHadiths(state.collection, state.chapter, push);
-  } else if (state.view === "search") {
+  } else if (state.view === "hadiths" && state.collection) {
+    loadHadiths(state.collection, state.chapter || 1, push);
+  } else if (state.view === "search" && state.query) {
     executeSearch(state.query, push);
+  } else {
+    navigateToBooks(false);
   }
 }
 
 function goBack() {
-  window.history.back();
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    navigateToBooks(true);
+  }
 }
 
 function updateBreadcrumbs(crumbs) {
   const bar = document.getElementById("breadcrumb");
+  if (!bar) return;
   bar.innerHTML = "";
 
-  // Dedicated Back Button in Breadcrumbs
   const backBtn = document.createElement("button");
   backBtn.className = "btn btn-back";
   backBtn.innerHTML = `<i data-lucide="arrow-left"></i> Back`;
@@ -96,7 +101,8 @@ function updateBreadcrumbs(crumbs) {
 
 function showSection(sectionId) {
   document.querySelectorAll(".view-section").forEach(sec => sec.classList.add("hidden"));
-  document.getElementById(sectionId).classList.remove("hidden");
+  const target = document.getElementById(sectionId);
+  if (target) target.classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -162,7 +168,7 @@ function renderBooksGrid(books) {
   }
 }
 
-// Handle Search Input & Debounce
+// Search Filter Input
 function filterBooks() {
   const query = document.getElementById("searchInput").value.trim();
   
@@ -171,6 +177,8 @@ function filterBooks() {
   if (query.length < 2) {
     if (document.getElementById("viewBooks").classList.contains("hidden")) {
       navigateToBooks();
+    } else {
+      renderBooksGrid(allBooksData);
     }
     return;
   }
@@ -180,8 +188,8 @@ function filterBooks() {
   }, 300);
 }
 
-// Sunnah.com Style Full Text Search Execution
 async function executeSearch(query, pushHistory = true) {
+  if (!query) return;
   activeSearchQuery = query;
   showSection("viewHadiths");
 
@@ -190,7 +198,7 @@ async function executeSearch(query, pushHistory = true) {
   }
   
   const container = document.getElementById("hadithContainer");
-  container.innerHTML = `<p>Searching all collections starting from <strong>Sahih al-Bukhari</strong> for "<strong>${query}</strong>"...</p>`;
+  container.innerHTML = `<p>Searching collections starting from <strong>Sahih al-Bukhari</strong> for "<strong>${query}</strong>"...</p>`;
 
   document.getElementById("chapterBadge").innerText = "Search";
   document.getElementById("chapterTitleEnglish").innerText = `Results for "${query}"`;
@@ -214,7 +222,7 @@ async function executeSearch(query, pushHistory = true) {
 
     const countHeader = document.createElement("div");
     countHeader.style.cssText = "margin-bottom: 1.5rem; font-weight: 600; color: var(--text-secondary);";
-    countHeader.innerText = `Found ${data.count} result${data.count === 1 ? '' : 's'} across books (Ordered by Sahih Bukhari, Sahih Muslim, etc.)`;
+    countHeader.innerText = `Found ${data.count} result${data.count === 1 ? '' : 's'}`;
     container.appendChild(countHeader);
 
     data.results.forEach(h => {
@@ -227,8 +235,8 @@ async function executeSearch(query, pushHistory = true) {
   }
 }
 
-// Chapter View with Explicit Chapter Names
 async function loadChapters(collectionId, pushHistory = true) {
+  if (!collectionId) return;
   currentCollection = collectionId;
   showSection("viewChapters");
 
@@ -271,21 +279,21 @@ async function loadChapters(collectionId, pushHistory = true) {
   }
 }
 
-// Hadith View
 async function loadHadiths(collectionId, chapterId, pushHistory = true) {
+  if (!collectionId) return;
   currentCollection = collectionId;
-  currentChapter = parseInt(chapterId);
+  currentChapter = parseInt(chapterId) || 1;
   showSection("viewHadiths");
 
   if (pushHistory) {
-    history.pushState({ view: "hadiths", collection: collectionId, chapter: chapterId }, "", `?book=${collectionId}&chapter=${chapterId}`);
+    history.pushState({ view: "hadiths", collection: collectionId, chapter: currentChapter }, "", `?book=${collectionId}&chapter=${currentChapter}`);
   }
 
   const container = document.getElementById("hadithContainer");
   container.innerHTML = "<p>Loading hadiths...</p>";
 
   try {
-    const res = await fetch(`/api/hadiths?collection=${collectionId}&chapter=${chapterId}`);
+    const res = await fetch(`/api/hadiths?collection=${collectionId}&chapter=${currentChapter}`);
     const data = await res.json();
 
     document.getElementById("chapterBadge").innerText = `Chapter ${data.chapterInfo.id}`;
@@ -295,7 +303,7 @@ async function loadHadiths(collectionId, chapterId, pushHistory = true) {
     updateBreadcrumbs([
       { label: "Collections", action: () => navigateToBooks() },
       { label: data.bookInfo.name, action: () => loadChapters(collectionId) },
-      { label: `Chapter ${chapterId}`, action: null }
+      { label: `Chapter ${currentChapter}`, action: null }
     ]);
 
     container.innerHTML = "";
@@ -315,15 +323,15 @@ async function loadHadiths(collectionId, chapterId, pushHistory = true) {
 }
 
 function navigateChapter(delta) {
+  if (!currentCollection) return;
   const nextCh = currentChapter + delta;
   if (nextCh >= 1) {
     loadHadiths(currentCollection, nextCh);
   }
 }
 
-// Highlight exact search matches in HTML text
 function highlightText(text, query) {
-  if (!query) return text;
+  if (!query || !text) return text || '';
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   return text.replace(regex, `<mark class="highlight-search">$1</mark>`);
 }
