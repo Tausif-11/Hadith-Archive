@@ -15,7 +15,7 @@
 </head>
 <body>
 
-  <!-- App Layout -->
+  <!-- Top Navbar -->
   <nav class="navbar">
     <div class="logo-group" onclick="navigateToBooks()">
       <i data-lucide="book-open" class="logo-icon"></i>
@@ -31,11 +31,14 @@
     </div>
   </nav>
 
+  <!-- Navigation & Breadcrumb Bar -->
   <div class="breadcrumb-container">
     <div id="breadcrumb"></div>
   </div>
 
   <main class="container">
+    
+    <!-- Collections View -->
     <section id="viewBooks" class="view-section">
       <div class="search-container">
         <i data-lucide="search" class="search-icon"></i>
@@ -52,6 +55,7 @@
       <div id="booksGrid"></div>
     </section>
 
+    <!-- Chapters View -->
     <section id="viewChapters" class="view-section hidden">
       <div class="chapter-nav-bar">
         <div>
@@ -62,6 +66,7 @@
       <div id="chaptersList" class="chapters-list"></div>
     </section>
 
+    <!-- Hadith Display View -->
     <section id="viewHadiths" class="view-section hidden">
       <div class="chapter-nav-bar">
         <div>
@@ -76,6 +81,7 @@
       </div>
       <div id="hadithContainer"></div>
     </section>
+
   </main>
 
   <script src="/app.js"></script>

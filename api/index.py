@@ -17,7 +17,6 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Canonical Sunnah.com Priority Order: Sahih Bukhari -> Sahih Muslim -> Sunan -> Others -> 40s
 BOOK_ORDER = [
     "bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "malik", "ahmed", "darimi",
     "aladab_almufrad", "bulugh_almaram", "mishkat_almasabih", "riyad_assalihin", "shamail_muhammadiyah",
