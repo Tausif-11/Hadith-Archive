@@ -5,20 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HadithArchive</title>
   
-  <!-- Absolute path ensures CSS loads regardless of URL parameters -->
   <link rel="stylesheet" href="/style.css">
   
-  <!-- Google Fonts for Arabic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
-  <!-- Top Navbar -->
+  <!-- App Layout -->
   <nav class="navbar">
     <div class="logo-group" onclick="navigateToBooks()">
       <i data-lucide="book-open" class="logo-icon"></i>
@@ -34,14 +31,11 @@
     </div>
   </nav>
 
-  <!-- Breadcrumbs & Navigation Bar -->
   <div class="breadcrumb-container">
     <div id="breadcrumb"></div>
   </div>
 
   <main class="container">
-    
-    <!-- Collections View -->
     <section id="viewBooks" class="view-section">
       <div class="search-container">
         <i data-lucide="search" class="search-icon"></i>
@@ -58,7 +52,6 @@
       <div id="booksGrid"></div>
     </section>
 
-    <!-- Chapters View -->
     <section id="viewChapters" class="view-section hidden">
       <div class="chapter-nav-bar">
         <div>
@@ -69,7 +62,6 @@
       <div id="chaptersList" class="chapters-list"></div>
     </section>
 
-    <!-- Hadith Display View -->
     <section id="viewHadiths" class="view-section hidden">
       <div class="chapter-nav-bar">
         <div>
@@ -84,7 +76,6 @@
       </div>
       <div id="hadithContainer"></div>
     </section>
-
   </main>
 
   <script src="/app.js"></script>

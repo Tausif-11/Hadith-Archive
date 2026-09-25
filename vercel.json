@@ -6,18 +6,16 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
+  "routes": {
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "api/index.py"
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "src": "/(.*\\.(css|js|json|png|jpg|svg|ico))",
-      "dest": "public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "public/index.html"
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
   ]
+}
 }

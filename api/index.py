@@ -4,7 +4,6 @@ import re
 from typing import Dict, List, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -18,7 +17,7 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Canonical Order: Sahih Bukhari -> Sahih Muslim -> Sunan -> Other Books -> The 40s
+# Canonical Sunnah.com Priority Order: Sahih Bukhari -> Sahih Muslim -> Sunan -> Others -> 40s
 BOOK_ORDER = [
     "bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "malik", "ahmed", "darimi",
     "aladab_almufrad", "bulugh_almaram", "mishkat_almasabih", "riyad_assalihin", "shamail_muhammadiyah",
@@ -81,7 +80,6 @@ def get_book_data(collection: str) -> Dict[str, Any]:
             elif "hadiths" in raw_data:
                 hadith_list = raw_data["hadiths"]
 
-        # Parse chapter names directly from individual Hadith metadata if missing
         for idx, item in enumerate(hadith_list, 1):
             if isinstance(item, dict):
                 c_id = item.get("chapterId") or item.get("chapter_id") or 1
@@ -124,7 +122,7 @@ def get_books():
 def get_chapters(collection: str = "bukhari"):
     book = get_book_data(collection)
     chapters_list = list(book["chapters"].values())
-    chapters_list.sort(key=lambda x: int(x["id"]) if str(x["id"]).isdigit() else x["id"])
+    chapters_list.sort(key=lambda x: int(x["id"]) if str(x["id"]).isdigit() else str(x["id"]))
     
     counts = {}
     for item in book["hadiths"]:
@@ -199,18 +197,13 @@ def get_hadiths(collection: str = "bukhari", chapter: int = 1):
 
 @app.get("/api/search")
 def search_hadiths(query: str, collection: str = "all"):
-    """Sunnah.com style Search: Strict Ordering (Bukhari -> Muslim -> Sunan -> Others)."""
     if not query or len(query.strip()) < 2:
         return {"query": query, "results": []}
 
     q = query.strip().lower()
     results = []
 
-    # Filter collections preserving strict canonical priority order
-    if collection != "all" and collection in BOOK_METADATA:
-        search_order = [collection]
-    else:
-        search_order = BOOK_ORDER
+    search_order = [collection] if collection != "all" and collection in BOOK_METADATA else BOOK_ORDER
 
     for col in search_order:
         try:
@@ -239,7 +232,6 @@ def search_hadiths(query: str, collection: str = "all"):
             ch_info = book["chapters"].get(ch_id, {})
             ch_title = ch_info.get("title") or f"Chapter {ch_id}"
 
-            # Match against English, Arabic, or Hadith ID
             if q in eng_text.lower() or q in arabic_text or q == h_id:
                 results.append({
                     "id": f"{col}_{h_id}",
@@ -264,6 +256,7 @@ def search_hadiths(query: str, collection: str = "all"):
 
     return {"query": query, "count": len(results), "results": results}
 
-PUBLIC_DIR = os.path.join(BASE_DIR, "..", "public")
-if os.path.isdir(PUBLIC_DIR):
-    app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
